@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>四色拾光</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+/* === 颜色变量 === */
+:root{--语文:#e74c3c;--理科:#3498db;--英语:#27ae60;--交流:#ffffff;--card-bg:#fff;--left-bubble:#fff;--right-bubble:#95ec69;--like:#f44336;}
+
+/* === 基础样式（同前） === */
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
+body{background:#ededed;line-height:1.6}
+header{background:#222;color:#fff;padding:1rem;text-align:center;position:relative}
+header h1{font-size:1.8rem;letter-spacing:2px}
+nav{display:flex;flex-wrap:wrap;justify-content:center;background:#222}
+nav button{flex:1 1 120px;border:none;padding:1rem;font-size:1rem;cursor:pointer;transition:.3s;color:#fff}
+nav button.语文{background:var(--语文)}nav button.理科{background:var(--理科)}nav button.英语{background:var(--英语)}nav button.交流{background:var(--交流);color:#222}
+nav button.active{opacity:.7}
+main{padding:1rem;max-width:900px;margin:auto;min-height:calc(100vh - 220px);display:flex;flex-direction:column}
+.section{display:none;flex-direction:column;height:100%}.section.active{display:flex}
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.sec-title{font-size:1.5rem;font-weight:bold}
+.upload-btn{background:var(--英语);color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer}
+.grid{display:flex;flex-wrap:wrap;gap:1rem}
+.square-card{width:180px;height:180px;background:var(--card-bg);border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:.8rem;cursor:pointer;transition:transform .2s}
+.square-card:hover{transform:translateY(-4px)}
+.card-title{font-size:1.1rem;font-weight:bold;margin-bottom:.4rem;word-break:break-all}
+.card-meta{font-size:.8rem;color:#666;margin-bottom:.4rem}
+/* 点赞区 */
+.like-bar{display:flex;align-items:center;gap:.3rem;font-size:.8rem;color:#555}
+.like-btn{cursor:pointer;background:none;border:none;font-size:1rem;color:#666}
+.like-btn.liked{color:var(--like)}
+.card-detail{display:none;margin-top:.8rem;text-align:left;width:100%}
+.card-detail .detail-title{font-size:1.3rem;font-weight:bold;margin-bottom:.6rem}
+.card-detail .detail-md{line-height:1.7}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;justify-content:center;align-items:center;z-index:999}
+.modal{background:#fff;width:90%;max-width:520px;border-radius:8px;padding:1.2rem;display:flex;flex-direction:column;gap:.8rem}
+#regPage{position:fixed;inset:0;background:#fff;z-index:1000;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+#regPage h2{margin-bottom:1rem}
+#regForm{width:100%;max-width:400px;display:flex;flex-direction:column;gap:.6rem}
+.avatarBox{display:flex;align-items:center;gap:1rem}
+.avatarBox img{width:80px;height:80px;border-radius:50%;object-fit:cover;background:#eee}
+input[type=text],input[type=date],select{width:100%;padding:.6rem;margin-bottom:.6rem;border:1px solid #ddd;border-radius:4px}
+button.publish{background:#222;color:#fff;padding:.7rem 1.2rem;border:none;border-radius:4px;cursor:pointer}
+button.publish:hover{background:#444}
+</style>
+</head>
+<body>
+
+<!-- ======== 注册页 ======== -->
+<div id="regPage">
+  <h2>欢迎第一次来到「四色拾光」</h2>
+  <form id="regForm" onsubmit="return doReg()">
+    <input id="regUser" placeholder="用户名（必填，不可重复）" required>
+    <select id="regGender" required><option value="">请选择性别</option><option>男</option><option>女</option><option>保密</option></select>
+    <input id="regBirth" type="date">
+    <input id="regSchool" placeholder="学校（选填）">
+    <input id="regGrade" placeholder="年级班级（选填）">
+    <div class="avatarBox"><img id="avatarPreview" src=""><div><input type="file" id="avatarFile" accept="image/*" onchange="previewAvatar()"><div style="font-size:.8rem;color:#666">点击选择头像（选填）</div></div></div>
+    <button type="submit" class="publish">进入网站</button>
+  </form>
+</div>
+
+<!-- ======== 主站 ======== -->
+<header id="mainHeader" style="display:none"><h1>四色拾光</h1><p>把我们的作文与思考，分门别类地收集起来</p>
+  <div style="position:absolute;right:1rem;top:1rem;display:flex;align-items:center;gap:.5rem;color:#fff;font-size:0.9rem"><img id="topAvatar" width="32" height="32" style="border-radius:50%;object-fit:cover;background:#eee"><span id="topUser"></span></div>
+</header>
+<nav id="mainNav" style="display:none">
+  <button class="语文" onclick="switchSec('语文')">语文作文</button><button class="理科 active" onclick="switchSec('理科')">理科解答</button><button class="英语" onclick="switchSec('英语')">英语作文</button><button class="交流" onclick="switchSec('交流')">讨论交流</button>
+</nav>
+<main id="mainMain" style="display:none">
+  <!-- 理科 --><div class="section active" id="理科"><div class="sec-header"><div class="sec-title" style="color:var(--理科)">理科板块</div><button class="upload-btn" onclick="openUpload('理科')">+ 上传题解</button></div><div class="grid" id="理科-grid"></div></div>
+  <!-- 语文 --><div class="section" id="语文"><div class="sec-header"><div class="sec-title" style="color:var(--语文)">语文板块</div><button class="upload-btn" onclick="openUpload('语文')">+ 上传新作文</button></div><div class="grid" id="语文-grid"></div></div>
+  <!-- 英语 --><div class="section" id="英语"><div class="sec-header"><div class="sec-title" style="color:var(--英语)">英语板块</div><button class="upload-btn" onclick="openUpload('英语')">+ 上传新作文</button></div><div class="grid" id="英语-grid"></div></div>
+  <!-- 交流 --><div class="section" id="交流"><div class="chatHeader"><div id="chatTitle">大群</div><select id="userSelect" onchange="changeChat()"><option value="">— 选择用户私聊 —</option></select></div><div id="messages" class="messages"></div><div class="inputArea"><textarea id="msgInput" placeholder="输入消息…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){sendMsg();event.preventDefault()}"></textarea><button onclick="sendMsg()">发送</button></div></div>
+</main>
+
+<!-- 上传弹窗 --><div id="uploadMask" class="modal-mask"><div class="modal"><h3 id="modalTitle"></h3><input id="titleInput" placeholder="请输入题目"><textarea id="mdInput" placeholder="请输入正文（支持 Markdown）"></textarea><div style="text-align:right"><button onclick="saveUpload()">保存</button><button onclick="closeUpload()">取消</button></div></div></div>
+
+<script>
+/* ========== 用户系统 ========== */
+const LS_USER = 'sise_userName', LS_UINFO = 'sise_userInfo';
+let userName = localStorage.getItem(LS_USER), userInfo = JSON.parse(localStorage.getItem(LS_UINFO) || '{}');
+if (!userName || !userInfo.user) showReg(); else showMain();
+
+function showReg() {
+    document.getElementById('regPage').style.display = 'flex';
+    document.getElementById('mainHeader').style.display = 'none';
+    document.getElementById('mainNav').style.display = 'none';
+    document.getElementById('mainMain').style.display = 'none';
+}
+function showMain() {
+    document.getElementById('regPage').style.display = 'none';
+    document.getElementById('mainHeader').style.display = 'block';
+    document.getElementById('mainNav').style.display = 'flex';
+    document.getElementById('mainMain').style.display = 'block';
+    document.getElementById('topUser').textContent = userInfo.user;
+    document.getElementById('topAvatar').src = userInfo.avatar || '';
+    renderGrid('理科'); renderGridOld('语文'); renderGridOld('英语'); renderMessages();
+}
+function previewAvatar() {
+    const file = document.getElementById('avatarFile').files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => document.getElementById('avatarPreview').src = e.target.result;
+    reader.readAsDataURL(file);
+}
+function doReg() {
+    const name = document.getElementById('regUser').value.trim();
+    if (!name) return alert('用户名不能为空');
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k.startsWith('u_') && k.slice(2) === name) return alert('用户名已存在！');
+    }
+    const file = document.getElementById('avatarFile').files[0];
+    const info = {
+        user: name,
+        gender: document.getElementById('regGender').value,
+        birth: document.getElementById('regBirth').value,
+        school: document.getElementById('regSchool').value,
+        grade: document.getElementById('regGrade').value,
+        avatar: file ? document.getElementById('avatarPreview').src : ''
+    };
+    localStorage.setItem(LS_USER, name);
+    localStorage.setItem(LS_UINFO, JSON.stringify(info));
+    localStorage.setItem('u_' + name, '1');
+    userName = name; userInfo = info;
+    showMain();
+    return false;
+}
+
+/* ========== 板块切换 ========== */
+const sections = ['语文', '理科', '英语', '交流'];
+function switchSec(sec) {
+    sections.forEach(s => {
+        document.getElementById(s).classList.remove('active');
+        document.querySelector(`nav button.${s}`).classList.remove('active');
+    });
+    document.getElementById(sec).classList.add('active');
+    document.querySelector(`nav button.${sec}`).classList.add('active');
+    if (sec === '交流') { initUserSelect(); changeChat(); }
+    else if (sec === '理科') renderGrid(sec);
+    else if (sec === '语文' || sec === '英语') renderGridOld(sec);
+}
+
+/* ========== 聊天 ========== */
+let currentTo = '';
+function initUserSelect() {
+    const sel = document.getElementById('userSelect');
+    sel.innerHTML = '<option value="">— 选择用户私聊 —</option>';
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k.startsWith('u_')) {
+            const name = k.slice(2);
+            if (name === userName) continue;
+            const opt = document.createElement('option');
+            opt.value = name; opt.textContent = name; sel.appendChild(opt);
+        }
+    }
+}
+function changeChat() {
+    currentTo = document.getElementById('userSelect').value;
+    document.getElementById('chatTitle').textContent = currentTo || '大群';
+    renderMessages();
+}
+function renderMessages() {
+    const box = document.getElementById('messages');
+    box.innerHTML = '';
+    const arr = JSON.parse(localStorage.getItem(currentTo ? `私聊_${currentTo}` : '大群') || '[]');
+    arr.forEach(m => {
+        const isMe = m.from === userName;
+        const div = document.createElement('div');
+        div.className = 'msg ' + (isMe ? 'me' : 'other');
+        div.innerHTML = `<img src="${m.avatar || ''}" onerror="this.src=''"><div><div class="bubble">${m.txt}</div><div class="time">${m.time}　<b>${isMe ? '我' : m.from}</b></div></div>`;
+        box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+}
+function sendMsg() {
+    const txt = document.getElementById('msgInput').value.trim();
+    if (!txt) return;
+    const key = currentTo ? `私聊_${currentTo}` : '大群';
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    arr.push({ from: userName, to: currentTo, txt, time: new Date().toLocaleString(), avatar: userInfo.avatar || '' });
+    localStorage.setItem(key, JSON.stringify(arr));
+    document.getElementById('msgInput').value = '';
+    renderMessages();
+}
+
+/* ========== 点赞相关 ========== */
+function toggleLike(cardDiv, item, sec, idx) {
+    if (!item.likes) item.likes = [];
+    const i = item.likes.indexOf(userName);
+    if (i === -1) item.likes.push(userName); else item.likes.splice(i, 1);
+    // 写回 localStorage
+    const arr = JSON.parse(localStorage.getItem('四色拾光_' + sec) || '[]');
+    arr[idx] = item;
+    localStorage.setItem('四色拾光_' + sec, JSON.stringify(arr));
+    // 刷新当前板块
+    sec === '理科' ? renderGrid(sec) : renderGridOld(sec);
+}
+
+/* ========== 渲染函数（含点赞） ========== */
+function renderGrid(sec) {
+    const grid = document.getElementById(sec + '-grid');
+    grid.innerHTML = '';
+    const arr = JSON.parse(localStorage.getItem('四色拾光_' + sec) || '[]');
+    arr.reverse().forEach((item, idx) => {
+        if (!item.likes) item.likes = [];
+        const card = document.createElement('div');
+        card.className = 'square-card';
+        const detail = document.createElement('div');
+        detail.className = 'card-detail';
+        detail.innerHTML = `<div class="detail-title">${item.title}</div><div class="detail-md">${marked.parse(item.md)}</div>`;
+
+        // 点赞栏
+        const likeBar = document.createElement('div');
+        likeBar.className = 'like-bar';
+        const liked = item.likes.indexOf(userName) !== -1;
+        likeBar.innerHTML = `
+            <button class="like-btn ${liked ? 'liked' : ''}" onclick="toggleLike(this.parentElement.parentElement, ${JSON.stringify(item).replace(/"/g,'&quot;')}, '${sec}', ${arr.length - 1 - idx})">${liked ? '❤' : '🤍'}</button>
+            <span>${item.likes.length} 赞</span>
+        `;
+
+        card.innerHTML = `<div class="card-title">${item.title}</div><div class="card-meta">${item.user} · ${item.time}</div>`;
+        card.appendChild(likeBar);
+        card.appendChild(detail);
+        card.onclick = e => { if (e.target.closest('.like-bar')) return; detail.style.display = detail.style.display === 'block' ? 'none' : 'block'; };
+        grid.appendChild(card);
+    });
+}
+function renderGridOld(sec) {
+    const grid = document.getElementById(sec + '-grid');
+    grid.innerHTML = '';
+    const arr = JSON.parse(localStorage.getItem('四色拾光_' + sec) || '[]');
+    arr.reverse().forEach((item, idx) => {
+        if (!item.likes) item.likes = [];
+        const card = document.createElement('div');
+        card.className = 'square-card';
+        const cont = document.createElement('div');
+        cont.className = 'card-detail';
+        cont.innerHTML = (item.txt || '').replace(/\n/g, '<br>');
+
+        // 点赞栏
+        const likeBar = document.createElement('div');
+        likeBar.className = 'like-bar';
+        const liked = item.likes.indexOf(userName) !== -1;
+        likeBar.innerHTML = `
+            <button class="like-btn ${liked ? 'liked' : ''}" onclick="toggleLike(this.parentElement.parentElement, ${JSON.stringify(item).replace(/"/g,'&quot;')}, '${sec}', ${arr.length - 1 - idx})">${liked ? '❤' : '🤍'}</button>
+            <span>${item.likes.length} 赞</span>
+        `;
+
+        card.innerHTML = `<div class="card-title">${item.title || '无题'}</div><div class="card-meta">${item.user} · ${item.time}</div>`;
+        card.appendChild(likeBar);
+        card.appendChild(cont);
+        card.onclick = e => { if (e.target.closest('.like-bar')) return; cont.style.display = cont.style.display === 'block' ? 'none' : 'block'; };
+        grid.appendChild(card);
+    });
+}
+
+/* ========== 上传弹窗 ========== */
+let uploadSec = '';
+function openUpload(sec) {
+    uploadSec = sec;
+    document.getElementById('modalTitle').textContent = sec === '理科' ? '上传题解' : '上传作文';
+    document.getElementById('uploadMask').style.display = 'flex';
+    document.getElementById('titleInput').value = '';
+    document.getElementById('mdInput').value = '';
+}
+function closeUpload() {
+    document.getElementById('uploadMask').style.display = 'none';
+}
+function saveUpload() {
+    const title = document.getElementById('titleInput').value.trim();
+    const md = document.getElementById('mdInput').value.trim();
+    if (!title || !md) return alert('题目和正文都要填写！');
+    const key = '四色拾光_' + uploadSec;
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    const payload = uploadSec === '理科'
+        ? { title, md, user: userName, time: new Date().toLocaleString(), likes: [] }
+        : { title, txt: md, user: userName, time: new Date().toLocaleString(), likes: [] };
+    arr.push(payload);
+    localStorage.setItem(key, JSON.stringify(arr));
+    closeUpload();
+    uploadSec === '理科' ? renderGrid(uploadSec) : renderGridOld(uploadSec);
+}
+</script>
+</body>
+</html>
